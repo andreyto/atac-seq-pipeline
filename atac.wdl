@@ -721,6 +721,9 @@ task macs2 {
 	String? disks
 
 	command {
+    # this prevents File exists error when macs2 is trying to extract
+    # eggs in concurrent jobs and using the same default cache directory
+    export PYTHON_EGG_CACHE=`mktemp -d --tmpdir ATACSEQ_PYTHON_EGG_CACHE.XXXX`
 		python $(which encode_macs2_atac.py) \
 			${ta} \
 			${"--gensz "+ gensz} \
@@ -793,7 +796,7 @@ task idr {
 		#@docker : "quay.io/encode-dcc/atac-seq-pipeline:v1"
 		memory : "4000 MB"
 		disks : "local-disk 50 HDD"
-	}	
+	}
 }
 
 task overlap {
