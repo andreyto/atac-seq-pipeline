@@ -796,6 +796,7 @@ task idr {
 		#@docker : "quay.io/encode-dcc/atac-seq-pipeline:v1"
 		memory : "4000 MB"
 		disks : "local-disk 50 HDD"
+		conda_env : "atac-wdl"
 	}
 }
 
