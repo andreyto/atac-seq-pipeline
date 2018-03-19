@@ -199,8 +199,15 @@ def pdf2png(pdf, out_dir):
     run_shell_cmd(cmd)
     return png
 
-def run_shell_cmd(cmd): 
+def run_shell_cmd(cmd,pipefail=True,errorexit=True):
     try:
+        ## The meaning of bash error-catching options is described here:
+        ## https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
+        if pipefail:
+            cmd = "set -o pipefail; " + cmd
+        if errorexit:
+            cmd = "set -E; " + cmd
+
         p = subprocess.Popen(cmd, shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -218,17 +225,27 @@ def run_shell_cmd(cmd):
             print('PID={}: {}'.format(pid,line.strip('\n')))
             ret += line
         p.communicate() # wait here
-        if p.returncode > 0:
+        if p.returncode != 0:
             raise subprocess.CalledProcessError(
                 p.returncode, cmd)
         return ret.strip('\n')
     except:
+        ## The above can also generate CalledProcessError that will be
+        ## caught here
         # kill all child processes
-        log.exception('Unknown exception caught. '+ \
+        log.exception('Exception caught. '+ \
             'Killing process group {}...'.format(pgid))
-        os.killpg(pgid, signal.SIGKILL)
-        p.terminate()
-        raise Exception('Unknown exception caught. PID={}'.format(pid))
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except OSError:
+            ## supress new exceptions in a (typical) case all processes already died
+            pass
+        try:
+            ## supress new exceptions in a (typical) case all processes already died
+            p.terminate()
+        except OSError:
+            pass
+        raise Exception('Exception caught. PID={} cmd={}'.format(pid,cmd))
 
 # math
 
