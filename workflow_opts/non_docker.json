@@ -1,9 +1,12 @@
 {
+	"final_workflow_outputs_dir" : "final",
+	"final_workflow_log_dir" : "log_dir",
     "default_runtime_attributes" : {
         "cpu": "1",
         "memory": "4 GB",
         "sge_pe" : "shm",
         "sge_queue" : "q",
-        "slurm_partition" : "akundaje"
+        "slurm_partition" : "akundaje",
+        "conda_env" : "encode-atac-seq-pipeline",
     }
 }
