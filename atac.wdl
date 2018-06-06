@@ -448,6 +448,15 @@ workflow atac {
 		idr_reproducibility_qc = reproducibility_idr.reproducibility_qc,
 		overlap_reproducibility_qc = reproducibility_overlap.reproducibility_qc,
 	}
+
+	output {
+	  Array[File] out_nodup_bams = flatten([nodup_bams,filter.nodup_bam])
+	  Array[File] out_tas = flatten([tas,bam2ta.ta])
+	  Array[File] out_bfilt_npeaks = macs2.bfilt_npeak
+	  File  out_qc_report = qc_report.report
+      File out_qc_json = qc_report.qc_json
+	}
+
 }
 
 #@task dummy {
