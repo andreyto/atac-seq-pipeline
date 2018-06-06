@@ -84,12 +84,16 @@ def parse_arguments(debug=False):
     log.info(sys.argv)
     return args
 
-def trim_adapter_se(fastq, adapter, min_trim_len, err_rate, out_dir):
-    if adapter:
-        prefix = os.path.join(out_dir,
-            os.path.basename(strip_ext_fastq(fastq)))
-        trimmed = '{}.trim.fastq.gz'.format(prefix)
+def _trimmed_one_fn_disambig(out_dir,fastq,i_samp):
+    prefix = os.path.join(out_dir,
+                          os.path.basename(strip_ext_fastq(fastq)))
+    disambig = ".{}".format(i_samp) if i_samp > 0 else ""
+    return '{}{}.trim.fastq.gz'.format(prefix,disambig)
 
+
+def trim_adapter_se(fastq, adapter, min_trim_len, err_rate, out_dir, i_samp):
+    trimmed = _trimmed_one_fn_disambig(out_dir,fastq,i_samp)
+    if adapter:
         cmd = 'cutadapt {} -e {} -a {} {} | gzip -nc > {}'.format(
             '-m {}'.format(min_trim_len) if min_trim_len > 0 else '',
             err_rate,
@@ -97,24 +101,17 @@ def trim_adapter_se(fastq, adapter, min_trim_len, err_rate, out_dir):
             fastq,
             trimmed)     
         run_shell_cmd(cmd)
-        return trimmed
     else:
         # make hard link
-        linked = os.path.join(out_dir,
-            os.path.basename(fastq))
-        os.link(fastq, linked)
-        return linked        
+        # TODO: fastq might be already a soft-link in Cromwell localization pointing to a different FS
+        os.link(fastq, trimmed)
+    return trimmed
 
 def trim_adapter_pe(fastq1, fastq2, adapter1, adapter2,
-        min_trim_len, err_rate, out_dir):
+        min_trim_len, err_rate, out_dir, i_samp):
+    trimmed1 = _trimmed_one_fn_disambig(out_dir,fastq1,i_samp)
+    trimmed2 = _trimmed_one_fn_disambig(out_dir,fastq2,i_samp)
     if adapter1 and adapter2:
-        prefix1 = os.path.join(out_dir,
-            os.path.basename(strip_ext_fastq(fastq1)))
-        prefix2 = os.path.join(out_dir,
-            os.path.basename(strip_ext_fastq(fastq2)))
-        trimmed1 = '{}.trim.fastq.gz'.format(prefix1)
-        trimmed2 = '{}.trim.fastq.gz'.format(prefix2)
-
         cmd = 'cutadapt {} -e {} -a {} -A {} {} {} -o {} -p {}'.format(
             '-m {}'.format(min_trim_len) if min_trim_len > 0 else '',
             err_rate,
@@ -122,16 +119,13 @@ def trim_adapter_pe(fastq1, fastq2, adapter1, adapter2,
             fastq1, fastq2,
             trimmed1, trimmed2)
         run_shell_cmd(cmd)
-        return [trimmed1, trimmed2]
     else:
         # make hard link
-        linked1 = os.path.join(out_dir,
-            os.path.basename(fastq1))
-        linked2 = os.path.join(out_dir,
-            os.path.basename(fastq2))
-        os.link(fastq1, linked1)
-        os.link(fastq2, linked2)
-        return [linked1, linked2]
+        # TODO: fastq might be already a soft-link in Cromwell localization pointing to a different FS
+        os.link(fastq1, trimmed1)
+        os.link(fastq2, trimmed2)
+    return [trimmed1, trimmed2]
+
 
 # WDL glob() globs in an alphabetical order
 # so R1 and R2 can be switched, which results in an
@@ -214,7 +208,8 @@ def main():
                     adapters[0], adapters[1],
                     args.min_trim_len,
                     args.err_rate,
-                    args.out_dir))
+                    args.out_dir,
+                    i))
         else:
             ret_val = pool.apply_async(
                 trim_adapter_se,(
@@ -222,7 +217,8 @@ def main():
                     adapters[0],
                     args.min_trim_len,
                     args.err_rate,
-                    args.out_dir))
+                    args.out_dir,
+                    i))
         ret_vals.append(ret_val)
 
     # update array with trimmed fastqs
